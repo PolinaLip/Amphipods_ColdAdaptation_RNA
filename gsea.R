@@ -6,13 +6,14 @@ library(ggsci)
 library(shadowtext)
 
 ### Make paths to required files:
-dir <- 'labeglo2/Transcriptomics/quantification/AEA_metazoa_Ecy'
+dir <- 'labeglo2/Transcriptomics/quantification/AEA_metazoa_Gla/'
 #dir <- 'labeglo2/MS_results/fold_change_calculation/second_exp/' # proteomics
 #DE_sample <- 'Eve_BKvsPB_1.5C_filt.csv'  # proteomics
 #DE_sample <- 'condition_1.5C_vs_12C_0.05_FAv3_1.5vs12_.csv' # the output from differential expression analysis (Note that it is better to take DE transcripts with low padj)
 DE_sample <- 'condition_1.5C_vs_12C_0.05_FA.csv'
 #DE_sample <- 'condition_Ecy_vs_Gla_0.05_1.5C.csv'
 #DE_sample <- 'condition_Ecy_vs_Gla_0.01_lfc2_1.5C.csv'
+DE_sample <- 'condition_Ecy_vs_Gla_0.01_lfc2_1.5C.csv'
 eggnog_FA <- 'ecy_metazoa_eggnog3.csv' # the output after EggNOG mapper (functional annotation), the file should be without log info from Eggnog (the first 4 rows and last 3 rows)
 #eggnog_FA <- 'gla_peptides_eggnog2.csv'
 #eggnog_FA <- 'ecy_peptides_eggnog2.csv'
@@ -35,7 +36,7 @@ names(GOs) <- go_terms$V6 # assign gene names to it
 DE_gene_stat <- DE_gene_list$stat # transcriptomics
 #DE_gene_stat <- DE_gene_list$t.mod # proteomics
 names(DE_gene_stat) <- DE_gene_list$X
-names(DE_gene_stat) <- rownames(DE_gene_list) # proteomics
+#names(DE_gene_stat) <- rownames(DE_gene_list) # proteomics
 
 DE_gene_lfc <- DE_gene_list$log2FoldChange
 names(DE_gene_lfc) <- DE_gene_list$X
@@ -55,17 +56,18 @@ GOs2gene_CC <- GOs2gene[go_info[tmp,]$Root == 'cellular_component']
 #GOs2gene_less <- GOs2gene[tmp]
 
 ### Run GSEA
-fgseaRes_BP <- fgsea(GOs2gene_BP, DE_gene_stat, nperm = 10000)
-fgseaRes_MF <- fgsea(GOs2gene_MF, DE_gene_stat, nperm = 10000)
-fgseaRes_CC <- fgsea(GOs2gene_CC, DE_gene_stat, nperm = 10000)
+set.seed(42)
+fgseaRes_BP <- fgsea(GOs2gene_BP, DE_gene_stat)
+fgseaRes_MF <- fgsea(GOs2gene_MF, DE_gene_stat)
+fgseaRes_CC <- fgsea(GOs2gene_CC, DE_gene_stat)
 save(fgseaRes_BP, file = file.path(dir, 'gsea_BP_Eve1.5C_DE0.05.RData'))
 save(GOs2gene_MF, file = file.path(dir, 'gsea_MF_EcyGla1.5C_DE0.01lfc2.RData'))
 load('labeglo2/Transcriptomics/quantification/AEA_metazoa_Gla/gsea_BP_1.5vs12C.RData')
 load('labeglo2/Transcriptomics/quantification/AEA_metazoa_Eve/gsea_BP_Eve1.5C_DE0.05.RData')
 
-fgseaRes_sign_BP <- cbind(subset(fgseaRes_BP, pval < 0.05), 
+fgseaRes_sign_BP <- cbind(subset(fgseaRes_BP, pval < 0.002), 
                           rep('Biological process', 
-                          nrow(subset(fgseaRes_BP, pval < 0.05))))
+                          nrow(subset(fgseaRes_BP, pval < 0.002))))
 fgseaRes_sign_BP <- subset(fgseaRes_sign_BP, size > 2)
 fgseaRes_sign_MF <- cbind(subset(fgseaRes_MF, pval < 0.05), 
                           rep('Molecular function', 
@@ -368,7 +370,7 @@ ggplot(fgseaRes_sign_MF, aes(pathway, NES)) +
                      labels = c('DOWN','UP')) +
   theme_minimal()
 
-ggsave(file.path(dir, 'lollipop_gsea_MF.png'), scale = 1.5)
+ggsave(file.path(dir, 'lollipop_gsea_MF.png'), scale = 2.2)
 
 fgseaRes_sign_MF <- fgseaRes_sign_MF[
   !grepl('GO:0008186|GO:0016411|GO:0005528|GO:0004553|GO:0051959', fgseaRes_sign_MF$pathway)] 

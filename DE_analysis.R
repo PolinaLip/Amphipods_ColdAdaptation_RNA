@@ -16,7 +16,7 @@ path_to_files <- function(dir_to_samples, sample_dir_names){
   return(f)
 }
 
-dir <- 'labeglo2/Transcriptomics/quantification/AEA_metazoa_Gla' # specify path to your samples
+dir <- 'labeglo2/Transcriptomics/quantification/AEA_metazoa_Ecy' # specify path to your samples
 #dir <- 'labeglo2/Transcriptomics/quantification/AEA_GlaReads_EcyAssembly/GlaReads_EcyAssembly'
 #dir <- 'labeglo2/Transcriptomics/quantification/GlaReads_EcyAssembly_all_samples/'
 
@@ -50,8 +50,8 @@ txi_creation <- function(dir_to_samples,
 }
 
 txi <- txi_creation(dir, 'contigs_functional_annot.txt', files)
-#txi <- txi_creation(dir, 'contigs_DAnnotation.txt', files)
-#txi <- txi_creation(dir, 'Gla_kegg_pred_cds_annotation_wo_p_and_dupl.txt', files)
+txi <- txi_creation(dir, 'contigs_DAnnotation.txt', files)
+txi <- txi_creation(dir, 'Gla_kegg_pred_cds_annotation_wo_p_and_dupl.txt', files)
 #txi <- txi_creation(dir, 'kegg_annot_Gla_assembly.txt', files)
 #txi <- txi_creation(dir, 'pred_peptides_functional_annot_wo_p_and_Dupl.txt', files)
 #txi$counts <- txi$counts[-1,]
@@ -71,19 +71,6 @@ table_with_sample_descr <- function(samples_number, conditions){ # conditions is
 }
 
 sample_description <- table_with_sample_descr(8, c('12C', '1.5C'))
-#sample_description <- table_with_sample_descr(8, c('Gla', 'Ecy'))
-#sample_description$condition <- factor(sample_description$condition, 
-#                                       levels = c('Ecy', 'Gla'))
-#sample_description$condition <- factor(sample_description$condition, 
-#                                       levels = c('1.5C', '12C', '6C', '24C'))
-#sample_description$condition <- ifelse(sample_description$condition == '1.5C', 
-#                                       '1.5C', '6or12C')
-#sample_description$replicate <- c(paste0('12C_', 1:4), paste0('1.5C_', 1:4), 
-#                                  paste0('6C_', 1:3), paste0('24C_', 1:4))
-#sample_description$condition <- factor(sample_description$condition, 
-#                                       levels = c('6or12C','1.5C'))
-#sample_description <- sample_description[!rownames(sample_description) == 'sample10',]
-#row.names(sample_description) <- paste0('sample', 1:7)
 
 ### Run differential expression analysis based on the negative binominal distribution
 
@@ -93,11 +80,27 @@ deseq$condition
 
 deseq <- DESeq(deseq)
 res <- results(deseq, name = resultsNames(deseq)[2]) # results() extracts a results table with log2 fold changes, p values and adjusted p values  
+
+res_to_save <- as.data.frame(res)
+res_to_save$gene <- rownames(res_to_save)
+res_to_save <- subset(res_to_save, gene != '')
+res_to_save <- res_to_save[,c(7, 1:6)]
+write.table(res_to_save, 
+            file = file.path(dir, paste0('Eve_FA_', resultsNames(deseq)[2], '.csv')), 
+            quote = F, sep = '\t', row.names = F)
+
 #res[grepl('XP_015433778.1|RNA01364.1|RNA33404.1', row.names(res)),] # select set of genes
 
-res[grepl('CYB5R3|DIA1|Cyb5r3|MCR1|YKL150W|YKL605|CBR1|CBR|CYB5R', row.names(res), ignore.case = T),] # NADH-cytochrome b5 reductase -> one of the component of aerobic desaturation (PUFA synthesis)
-res[grepl('CYB5A|CYB5B|CYB5m|Omb5|CB5-A|N1949|YNL111C|Cyt-b5|CG2140', row.names(res), ignore.case = T),] # cytochrome b5 -> one of the component of aerobic desaturation (PUFA synthesis)
-res[grepl('FADS|SCD|des6|Delta6FAD|FAD2|desat|OLE1|fat-6', row.names(res), ignore.case = T),] # acyl-coa desaturases -> one of the component of aerobic desaturation (PUFA synthesis)
+res[grepl('CYB5R3|DIA1|Cyb5r3|MCR1|YKL150W|YKL605|CBR1|CBR|CYB5R', row.names(res), 
+          ignore.case = T),] # NADH-cytochrome b5 reductase -> one of the component of aerobic desaturation (PUFA synthesis)
+res[grepl('CYB5A|CYB5B|CYB5m|Omb5|CB5-A|N1949|YNL111C|Cyt-b5|CG2140', row.names(res),
+          ignore.case = T),] # cytochrome b5 -> one of the component of aerobic desaturation (PUFA synthesis)
+res[grepl('FADS|SCD|des6|Delta6FAD|FAD2|desat|OLE1|fat-6', 
+          row.names(res), ignore.case = T),] # acyl-coa desaturases -> one of the component of aerobic desaturation (PUFA synthesis)
+res[grepl('XP_018025799.1|AAL40916.1|AMB38750.1|XP_018015808.1', 
+          row.names(res), ignore.case = T),] # crustacean hyperglycemic hormone
+as.data.frame(res[grepl('DDX|DHX|Cirbp|cirp|dbp3|ded1|eIF4A|csda|Dead|Dicer|Sub2p|UAP56|Mrh4|Mss116p|Mtt1p|ighmbp2|SETX|IBP160|MOV10|HELC1|Slh1p|SKIL2|Mtr4p',
+          rownames(res), ignore.case = T),])
 
 res_sign <- subset(res, padj < 0.05)
 res_ordered <- res_sign[order(res_sign$log2FoldChange),]
@@ -118,18 +121,20 @@ ss_dist_heatmap <- function(vst_output, dir_to_samples, name=NULL){
   condition_name <- paste(levels(vst_output$condition)[2], 
                           levels(vst_output$condition)[1], sep = '_vs_')
   rownames(sampleDistMatrix) <- sub('C.*', '°C', rownames(sampleDistMatrix))
-  
+  print(sampleDistMatrix)
   pheatmap(sampleDistMatrix,
+           breaks = seq(0, 300, 20),
            clustering_distance_rows = sample_dist,
            clustering_distance_cols = sample_dist,
-           color = plasma(10), 
-           fontsize_row = 16,
+           color = plasma(15), 
+           fontsize_row = 14,
            filename = file.path(dir_to_samples, paste0(name, '_', condition_name, '_heatmap_SampleDIST.png')),
-           width = 7,
-           height = 5.5)
+           width = 5,
+           height = 3.5)
   if (dev.cur() != 1) {dev.off()}
 }
-ss_dist_heatmap(tr_counts, dir, name = 'EcyGla2_1.5') # !!! put specific name to not overwrite previous plots
+
+ss_dist_heatmap(tr_counts, dir, name = 'Eve_scale2') # !!! put specific name to not overwrite previous plots
 
 ### Draw PCA of samples
 
@@ -244,6 +249,8 @@ results_sign <- function(dds_results,
                                                     '.csv')), quote = F, sep = '\t')
 }
 results_sign(res, dir, deseq, special_name = '1.5C', adj_pv_thr = 0.01, lfc = 2)
+resOrdered <- res[order(res$pvalue),]
+res_signif <- subset(resOrdered, padj < 0.001)
 
 ### Make a heatmap for genes
 
@@ -614,7 +621,7 @@ toheatmap <- names(chosen_contigs_to_heatmap_stat)
 toheatmap <- unique(toheatmap)
 #toheatmap <- c(toheatmap, 'Vg')
 heatmap_gene_set(txi, res, tr_counts, toheatmap, dir_to_samples = dir, 
-                 adj_pv_thr = 0.05, lfc = 0, name='gene_expression')
+                 adj_pv_thr = 1, lfc = 0, name='rna_helicases')
 # RNA helicases:
 toheatmap <- row.names(res[grepl('DDX|DHX|Cirbp|cirp|dbp3|ded1|eIF4A|csda|Dead|Dicer|Sub2p|UAP56|Mrh4|Mss116p|Mtt1p|ighmbp2|SETX|IBP160|MOV10|HELC1|Slh1p|SKIL2|Mtr4p', row.names(res), 
                                       ignore.case = T),])
